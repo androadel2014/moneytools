@@ -1,0 +1,80 @@
+name: Release AAB (signed)
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: moneytools-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+
+      - name: Accept SDK licenses
+        run: yes | sdkmanager --licenses > /dev/null 2>&1 || true
+
+      - name: Install SDK platform 36 and build tools
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0" "platform-tools"
+
+      - name: Set up Gradle 8.13 (for wrapper regeneration only)
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.13'
+          validate-wrappers: false
+
+      - name: Regenerate official Gradle wrapper JAR (checksum-verified)
+        run: |
+          set -euo pipefail
+          EXPECTED="81a82aaea5abcc8ff68b3dfcb58b3c3c429378efd98e7433460610fecd7ae45f"
+          GEN="$(mktemp -d)/gen"
+          mkdir -p "$GEN"
+          printf 'rootProject.name = "wrapgen"\n' > "$GEN/settings.gradle.kts"
+          (cd "$GEN" && gradle wrapper --gradle-version 8.13 --distribution-type bin)
+          cp "$GEN/gradle/wrapper/gradle-wrapper.jar" gradle/wrapper/gradle-wrapper.jar
+          GOT="$(sha256sum gradle/wrapper/gradle-wrapper.jar | awk '{print $1}')"
+          if [ "$GOT" != "$EXPECTED" ]; then echo "ERROR: wrapper checksum mismatch" >&2; exit 1; fi
+
+      - name: Make Gradle wrapper executable
+        run: chmod +x gradlew
+
+      - name: Decode upload keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        run: |
+          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/upload-keystore.jks"
+          echo "KEYSTORE_FILE=$RUNNER_TEMP/upload-keystore.jks" >> "$GITHUB_ENV"
+
+      - name: Run unit tests
+        run: ./gradlew :app:testDebugUnitTest --stacktrace
+
+      - name: Build signed release AAB
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: ./gradlew :app:bundleRelease --stacktrace
+
+      - name: Print AAB signer fingerprint
+        run: keytool -printcert -jarfile app/build/outputs/bundle/release/app-release.aab | grep -E "Owner|SHA256:" || true
+
+      - name: Upload release AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: MoneyTools-release-AAB
+          path: app/build/outputs/bundle/release/app-release.aab
+          retention-days: 30

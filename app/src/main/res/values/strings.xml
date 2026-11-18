@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+<string name="app_name">MoneyTools: Loan &amp; Tip Calculator</string>
+<string name="home_title">MoneyTools</string>
+<string name="home_subtitle">Loan, Tip &amp; Tax Calculator</string>
+<string name="loan_title">Loan Calculator</string>
+<string name="tip_title">Tip &amp; Split</string>
+<string name="discount_title">Discount &amp; Tax</string>
+<string name="savings_title">Savings Growth</string>
+<string name="settings_title">Settings</string>
+<string name="calculate">Calculate</string>
+<string name="support">Support &amp; Feedback</string>
+<string name="remove_ads">Remove Ads</string>
+<string name="restore">Restore Purchases</string>
+<string name="ad_promise">Our ad promise: MoneyTools shows one small banner ad at the bottom of the Home screen and below results, and sometimes one full-screen ad after you finish a calculation. We never show ads while you type. We never show more than one full-screen ad in 3 minutes. We never show rewarded ads. Buying Remove Ads once removes every ad, forever, on this device and after Restore Purchases.</string>
+</resources>
